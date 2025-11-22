@@ -1,0 +1,5 @@
+{
+  "name": "PrzerobMiZdjecie.pl",
+  "description": "A modern React application for transforming photos using Google Gemini 3 Pro (Nano Banana Pro) based on user prompts.",
+  "requestFramePermissions": []
+}

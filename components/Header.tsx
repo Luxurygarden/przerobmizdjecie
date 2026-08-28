@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Zap, Plus, LogIn, LogOut, User as UserIcon } from 'lucide-react';
 import { UserProfile } from '../types';
 
@@ -10,6 +10,23 @@ interface HeaderProps {
 }
 
 const Header: React.FC<HeaderProps> = ({ user, onLogin, onLogout, onAddCredits }) => {
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  // Close the profile menu on an outside click, so it works on touch devices
+  useEffect(() => {
+    if (!isMenuOpen) return;
+
+    const handleClickOutside = (event: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setIsMenuOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isMenuOpen]);
+
   return (
     <header className="w-full py-4 px-6 flex flex-col sm:flex-row justify-between items-center bg-[#050810]/80 backdrop-blur-md sticky top-0 z-50 border-b border-gray-800 gap-4 sm:gap-0">
       <div className="flex items-center">
@@ -42,12 +59,18 @@ const Header: React.FC<HeaderProps> = ({ user, onLogin, onLogout, onAddCredits }
                 <div className="h-8 w-[1px] bg-gray-800 hidden sm:block"></div>
 
                 {/* User Profile */}
-                <div className="flex items-center gap-3 group relative">
+                <div className="flex items-center gap-3 relative" ref={menuRef}>
                     <div className="text-right hidden sm:block">
                         <p className="text-sm font-bold text-white leading-none">{user.name}</p>
                         <p className="text-xs text-gray-500">Plan Free</p>
                     </div>
-                    <button className="relative">
+                    <button
+                        className="relative"
+                        onClick={() => setIsMenuOpen(open => !open)}
+                        aria-expanded={isMenuOpen}
+                        aria-haspopup="menu"
+                        title="Menu konta"
+                    >
                         <img 
                             src={user.avatarUrl} 
                             alt={user.name} 
@@ -57,12 +80,16 @@ const Header: React.FC<HeaderProps> = ({ user, onLogin, onLogout, onAddCredits }
                     </button>
 
                     {/* Dropdown Logout */}
-                    <div className="absolute right-0 top-12 w-48 bg-[#111827] border border-gray-800 rounded-lg shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all transform translate-y-[-10px] group-hover:translate-y-0 z-50">
+                    <div className={`absolute right-0 top-12 w-48 bg-[#111827] border border-gray-800 rounded-lg shadow-xl transition-all transform z-50 ${
+                        isMenuOpen
+                            ? 'opacity-100 visible translate-y-0'
+                            : 'opacity-0 invisible translate-y-[-10px]'
+                    }`}>
                          <div className="p-3 border-b border-gray-800 text-xs text-gray-400">
                             Zalogowany jako <br/> <span className="text-white font-medium">{user.email}</span>
                          </div>
                          <button 
-                            onClick={onLogout}
+                            onClick={() => { setIsMenuOpen(false); onLogout(); }}
                             className="w-full text-left px-4 py-3 text-sm text-red-400 hover:bg-gray-800 hover:text-red-300 flex items-center gap-2 transition-colors rounded-b-lg"
                          >
                             <LogOut size={16} /> Wyloguj się

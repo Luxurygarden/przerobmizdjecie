@@ -7,7 +7,7 @@ import PricingModal from './components/PricingModal';
 import AnalysisCard from './components/AnalysisCard';
 import { ApiKeyManager } from './components/ApiKeyManager';
 import { UploadedFile, GenerationState, UserProfile } from './types';
-import { generateTransformedImage, requestApiKeySelection, analyzeImage } from './services/geminiService';
+import { generateTransformedImage, requestApiKeySelection, analyzeImage, enhancePrompt } from './services/geminiService';
 import { authService } from './services/authService';
 import { Box, Wand2, Lock, LogIn } from 'lucide-react';
 
@@ -26,6 +26,7 @@ const App: React.FC = () => {
 
   // UI State
   const [isPricingOpen, setIsPricingOpen] = useState<boolean>(false);
+  const [isEnhancing, setIsEnhancing] = useState<boolean>(false);
 
   const [generationState, setGenerationState] = useState<GenerationState>({
     isLoading: false,
@@ -54,6 +55,7 @@ const App: React.FC = () => {
     authService.logout();
     setUser(null);
     setAnalysisResult(null);
+    if (currentFile) URL.revokeObjectURL(currentFile.previewUrl);
     setCurrentFile(null);
     setPrompt('');
   };
@@ -69,13 +71,18 @@ const App: React.FC = () => {
   };
 
   const handleFileSelect = async (file: UploadedFile) => {
+    // Release the previous preview so repeated uploads don't leak blob URLs
+    if (currentFile) URL.revokeObjectURL(currentFile.previewUrl);
     setCurrentFile(file);
     
     // Reset analysis state for new file
     setAnalysisResult(null);
     setAnalysisError(null);
     
-    if (!isApiKeyReady) return;
+    if (!isApiKeyReady) {
+      setAnalysisError('Połącz klucz API, aby przeanalizować zdjęcie.');
+      return;
+    }
 
     // Trigger Analysis
     setIsAnalyzing(true);
@@ -87,6 +94,25 @@ const App: React.FC = () => {
         setAnalysisError("Nie udało się przeanalizować zdjęcia.");
     } finally {
         setIsAnalyzing(false);
+    }
+  };
+
+  const handleEnhancePrompt = async () => {
+    if (!isApiKeyReady || !prompt.trim() || isEnhancing) return;
+
+    setIsEnhancing(true);
+    try {
+      const improved = await enhancePrompt(
+        prompt,
+        currentFile?.base64,
+        currentFile?.mimeType
+      );
+      setPrompt(improved);
+    } catch (error) {
+      console.error('Enhance failed', error);
+      setGenerationState(prev => ({ ...prev, error: 'Nie udało się ulepszyć opisu.' }));
+    } finally {
+      setIsEnhancing(false);
     }
   };
 
@@ -124,7 +150,9 @@ const App: React.FC = () => {
       const result = await generateTransformedImage(
         currentFile.base64,
         currentFile.mimeType,
-        prompt
+        prompt,
+        currentFile.width,
+        currentFile.height
       );
       setGenerationState({ isLoading: false, error: null, resultImage: result });
     } catch (err: any) {
@@ -189,6 +217,9 @@ const App: React.FC = () => {
             <PromptCard 
               prompt={prompt} 
               setPrompt={setPrompt} 
+              onEnhance={handleEnhancePrompt}
+              isEnhancing={isEnhancing}
+              canEnhance={isApiKeyReady}
             />
 
             {/* Action Section */}
@@ -230,8 +261,13 @@ const App: React.FC = () => {
                     )}
                   </button>
 
-                  <button className="w-full py-3 px-4 rounded-lg font-bold text-lg border border-gray-600 text-gray-300 hover:bg-gray-800 hover:text-white transition-colors flex items-center justify-center gap-2">
+                  <button
+                    disabled
+                    title="Funkcja w przygotowaniu"
+                    className="w-full py-3 px-4 rounded-lg font-bold text-lg border border-gray-700 text-gray-500 cursor-not-allowed flex items-center justify-center gap-2"
+                  >
                      <Box size={20} /> ZOBACZ W 3D
+                     <span className="text-xs font-normal uppercase tracking-wider">(wkrótce)</span>
                   </button>
                </div>
                

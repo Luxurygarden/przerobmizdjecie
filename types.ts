@@ -3,6 +3,8 @@ export interface UploadedFile {
   previewUrl: string;
   base64: string;
   mimeType: string;
+  width: number;
+  height: number;
 }
 
 export interface GenerationState {

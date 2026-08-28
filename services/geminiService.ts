@@ -66,12 +66,82 @@ export const analyzeImage = async (
 };
 
 /**
+ * Aspect ratios accepted by the image model, as width/height values.
+ */
+const SUPPORTED_ASPECT_RATIOS: Array<[string, number]> = [
+  ['21:9', 21 / 9],
+  ['16:9', 16 / 9],
+  ['3:2', 3 / 2],
+  ['4:3', 4 / 3],
+  ['5:4', 5 / 4],
+  ['1:1', 1],
+  ['4:5', 4 / 5],
+  ['3:4', 3 / 4],
+  ['2:3', 2 / 3],
+  ['9:16', 9 / 16],
+];
+
+/**
+ * Picks the supported aspect ratio closest to the source image, so a wide
+ * garden photo is not squashed into a square.
+ */
+export const closestAspectRatio = (width: number, height: number): string => {
+  if (!width || !height) return '1:1';
+  const target = width / height;
+  return SUPPORTED_ASPECT_RATIOS.reduce((best, current) =>
+    Math.abs(current[1] - target) < Math.abs(best[1] - target) ? current : best
+  )[0];
+};
+
+/**
+ * Rewrites a short user prompt into a richer one for the image model.
+ */
+export const enhancePrompt = async (
+  prompt: string,
+  base64Image?: string,
+  mimeType?: string
+): Promise<string> => {
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+
+  const parts: any[] = [
+    {
+      text: `Jesteś ekspertem od promptów do generowania obrazów AI oraz architektury krajobrazu.
+Rozbuduj poniższy opis użytkownika w jeden zwięzły, konkretny prompt po polsku (maksymalnie 4 zdania).
+Zachowaj intencję użytkownika, dodaj szczegóły materiałów, światła, pory dnia i perspektywy.
+Zwróć WYŁĄCZNIE gotowy prompt, bez komentarzy i bez formatowania Markdown.
+
+Opis użytkownika: ${prompt}`,
+    },
+  ];
+
+  if (base64Image && mimeType) {
+    parts.push({ inlineData: { data: base64Image, mimeType } });
+  }
+
+  try {
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: { parts },
+    });
+    return response.text?.trim() || prompt;
+  } catch (error: any) {
+    console.error('Gemini Enhance Error:', error);
+    if (error.message && error.message.includes('Requested entity was not found')) {
+      throw new Error('KEY_ERROR');
+    }
+    throw error;
+  }
+};
+
+/**
  * Generates a transformed image based on input image and prompt.
  */
 export const generateTransformedImage = async (
   base64Image: string,
   mimeType: string,
-  prompt: string
+  prompt: string,
+  width = 0,
+  height = 0
 ): Promise<string> => {
   // Re-initialize per call to ensure latest key is used
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
@@ -94,7 +164,7 @@ export const generateTransformedImage = async (
       },
       config: {
         imageConfig: {
-            aspectRatio: "1:1", // Standard square for this UI layout
+            aspectRatio: closestAspectRatio(width, height),
             imageSize: "1K"
         },
       }

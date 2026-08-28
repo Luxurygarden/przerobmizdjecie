@@ -26,13 +26,33 @@ const UploadCard: React.FC<UploadCardProps> = ({ onFileSelect, currentFile }) =>
 
     const reader = new FileReader();
     reader.onload = (e) => {
-      const base64String = (e.target?.result as string).split(',')[1];
-      onFileSelect({
-        file,
-        previewUrl: URL.createObjectURL(file),
-        base64: base64String,
-        mimeType: file.type,
-      });
+      const dataUrl = e.target?.result as string;
+      const base64String = dataUrl.split(',')[1];
+      const previewUrl = URL.createObjectURL(file);
+
+      // Read the natural dimensions so generation can match the source framing
+      const probe = new Image();
+      probe.onload = () => {
+        onFileSelect({
+          file,
+          previewUrl,
+          base64: base64String,
+          mimeType: file.type,
+          width: probe.naturalWidth,
+          height: probe.naturalHeight,
+        });
+      };
+      probe.onerror = () => {
+        onFileSelect({
+          file,
+          previewUrl,
+          base64: base64String,
+          mimeType: file.type,
+          width: 0,
+          height: 0,
+        });
+      };
+      probe.src = dataUrl;
     };
     reader.readAsDataURL(file);
   };

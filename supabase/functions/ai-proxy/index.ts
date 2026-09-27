@@ -68,7 +68,7 @@ Odpowiedz w formacie Markdown, dwie krótkie sekcje:
 
 async function generateImage(base64Image: string, mimeType: string, prompt: string): Promise<string> {
   const form = new FormData();
-  form.append("model", "gpt-image-1");
+  form.append("model", "gpt-image-2.5-sunburst-2026-09-08");
   form.append("prompt", `Transform the attached image based on this description: ${prompt}. Keep it photorealistic.`);
   form.append("size", "1024x1024");
   form.append("image", new Blob([base64ToBytes(base64Image)], { type: mimeType }), "input.png");

@@ -33,39 +33,43 @@ const App: React.FC = () => {
     resultImage: null,
   });
 
-  // Check for existing session on mount
+  // Subscribe to Supabase auth state (also handles the OAuth redirect return).
   useEffect(() => {
-    const currentUser = authService.getCurrentUser();
-    if (currentUser) {
-        setUser(currentUser);
-    }
+    const unsubscribe = authService.onAuthChange((nextUser) => {
+        setUser(nextUser);
+    });
+    return unsubscribe;
   }, []);
 
   const handleLogin = async () => {
     try {
-        const loggedUser = await authService.loginWithGoogle();
-        setUser(loggedUser);
+        // Redirects to Google, then back to the app; the auth subscription sets the user.
+        await authService.loginWithGoogle();
     } catch (error) {
         console.error("Login failed", error);
     }
   };
 
-  const handleLogout = () => {
-    authService.logout();
+  const handleLogout = async () => {
+    await authService.logout();
     setUser(null);
     setAnalysisResult(null);
     setCurrentFile(null);
     setPrompt('');
   };
 
-  const handlePurchase = (amount: number) => {
+  const handlePurchase = async (amount: number) => {
     if (!user) {
         handleLogin();
         return;
     }
-    const updatedUser = authService.updateCredits(user.id, amount);
-    setUser(updatedUser);
-    setGenerationState(prev => ({ ...prev, error: null })); // Clear error if they were blocked by credits
+    try {
+        const updatedUser = await authService.updateCredits(user.id, amount);
+        setUser(updatedUser);
+        setGenerationState(prev => ({ ...prev, error: null })); // Clear error if they were blocked by credits
+    } catch (error) {
+        console.error("Purchase failed", error);
+    }
   };
 
   const handleFileSelect = async (file: UploadedFile) => {
@@ -116,8 +120,8 @@ const App: React.FC = () => {
     // 3. Generation Process
     setGenerationState({ isLoading: true, error: null, resultImage: null });
     
-    // Deduct credit optimistically
-    const updatedUser = authService.updateCredits(user.id, -1);
+    // Deduct credit
+    const updatedUser = await authService.updateCredits(user.id, -1);
     setUser(updatedUser);
 
     try {

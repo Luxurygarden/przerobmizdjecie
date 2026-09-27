@@ -12,7 +12,18 @@ export default defineConfig(({ mode }) => {
       plugins: [react()],
       define: {
         'process.env.API_KEY': JSON.stringify(env.GEMINI_API_KEY),
-        'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY)
+        'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY),
+        // Supabase config. The anon key lives in the JWT env var.
+        'process.env.VITE_SUPABASE_URL': JSON.stringify(
+          env.VITE_SUPABASE_URL || 'https://tbjsqpntgnkdkmpzaqez.supabase.co'
+        ),
+        'process.env.VITE_SUPABASE_ANON_KEY': JSON.stringify(
+          env.VITE_SUPABASE_ANON_KEY || env.JWT
+        ),
+        // OAuth redirect target for the current environment.
+        'process.env.SUPABASE_REDIRECT_URL': JSON.stringify(
+          env.NEXT_PUBLIC_DEV_SUPABASE_REDIRECT_URL || ''
+        ),
       },
       resolve: {
         alias: {

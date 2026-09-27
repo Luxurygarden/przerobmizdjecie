@@ -7,7 +7,7 @@ const CORS_HEADERS = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
-const OPENAI_API_KEY = Deno.env.get("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");
+const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 

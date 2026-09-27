@@ -11,14 +11,8 @@ export interface GenerationState {
   resultImage: string | null;
 }
 
-export enum ModelType {
-  NANO_BANANA_PRO = 'gemini-3-pro-image-preview',
-}
-
 export interface UserProfile {
   id: string;
-  name: string;
   email: string;
-  avatarUrl: string;
   credits: number;
 }

@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Check, Zap, X, CreditCard, Loader2 } from 'lucide-react';
+import React from 'react';
+import { Check, Zap, X, CreditCard } from 'lucide-react';
 
 interface PricingModalProps {
   isOpen: boolean;
@@ -8,8 +8,6 @@ interface PricingModalProps {
 }
 
 const PricingModal: React.FC<PricingModalProps> = ({ isOpen, onClose, onPurchase }) => {
-  const [processingPlan, setProcessingPlan] = useState<number | null>(null);
-
   if (!isOpen) return null;
 
   const plans = [
@@ -43,13 +41,8 @@ const PricingModal: React.FC<PricingModalProps> = ({ isOpen, onClose, onPurchase
   ];
 
   const handleBuy = (planId: number, credits: number) => {
-    setProcessingPlan(planId);
-    // Simulate payment processing
-    setTimeout(() => {
-      onPurchase(credits);
-      setProcessingPlan(null);
-      onClose();
-    }, 1500);
+    // Payment processing (Stripe) is not wired up yet — this only notifies the caller.
+    onPurchase(credits);
   };
 
   return (
@@ -108,33 +101,19 @@ const PricingModal: React.FC<PricingModalProps> = ({ isOpen, onClose, onPurchase
                     ))}
                   </ul>
 
-                  <button
-                    onClick={() => handleBuy(plan.id, plan.credits)}
-                    disabled={processingPlan !== null}
-                    className={`w-full py-3 px-4 rounded-lg font-bold text-white shadow-lg transition-all flex items-center justify-center gap-2
-                      ${processingPlan === plan.id 
-                        ? 'bg-gray-600 cursor-wait' 
-                        : `bg-gradient-to-r ${plan.color} hover:opacity-90 active:scale-95`
-                      }
-                    `}
+                  <a
+                    href="mailto:kontakt@przerobmizdjecie.pl?subject=Doładowanie%20kredyt%C3%B3w"
+                    className={`w-full py-3 px-4 rounded-lg font-bold text-white shadow-lg transition-all flex items-center justify-center gap-2 bg-gradient-to-r ${plan.color} hover:opacity-90 active:scale-95`}
                   >
-                    {processingPlan === plan.id ? (
-                      <>
-                        <Loader2 className="animate-spin" size={20} /> Przetwarzanie...
-                      </>
-                    ) : (
-                      <>
-                        Wybieram <CreditCard size={18} />
-                      </>
-                    )}
-                  </button>
+                    Zapytaj o pakiet <CreditCard size={18} />
+                  </a>
                 </div>
               </div>
             ))}
           </div>
 
           <div className="mt-10 text-center text-sm text-gray-500">
-            Bezpieczne płatności obsługiwane przez Stripe. Gwarancja zwrotu pieniędzy w ciągu 14 dni.
+            Płatności online (Stripe) w przygotowaniu — na razie doładowanie kredytów odbywa się ręcznie, napisz do nas.
           </div>
         </div>
       </div>

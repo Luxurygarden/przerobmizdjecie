@@ -8,6 +8,7 @@ import tailwindcss from '@tailwindcss/vite';
 // VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY (safe to expose) are read from
 // .env.local by Vite automatically.
 export default defineConfig({
+  base: './',
   server: {
     port: 3000,
     host: '0.0.0.0',

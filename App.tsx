@@ -27,6 +27,7 @@ const App: React.FC = () => {
 
   // UI State
   const [isPricingOpen, setIsPricingOpen] = useState<boolean>(false);
+  const [paymentNotice, setPaymentNotice] = useState<{ kind: 'success' | 'info'; text: string } | null>(null);
 
   const [generationState, setGenerationState] = useState<GenerationState>({
     isLoading: false,
@@ -47,6 +48,47 @@ const App: React.FC = () => {
     });
 
     return () => subscription.subscription.unsubscribe();
+  }, []);
+
+  // Handle return from Stripe Checkout
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const payment = params.get('payment');
+    if (!payment) return;
+
+    window.history.replaceState(null, '', window.location.pathname);
+
+    if (payment === 'cancelled') {
+      setPaymentNotice({ kind: 'info', text: 'Płatność anulowana. Kredyty nie zostały pobrane.' });
+      return;
+    }
+    if (payment !== 'success') return;
+
+    setPaymentNotice({ kind: 'success', text: 'Dziękujemy za zakup! Dopisujemy kredyty do Twojego konta...' });
+
+    // Stripe confirms the payment via webhook a few seconds after the redirect.
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase.auth.getUser();
+      if (!data.user) return;
+      const before = (await authService.refreshCredits(data.user.id)).credits;
+      for (let i = 0; i < 10 && !cancelled; i++) {
+        await new Promise((r) => setTimeout(r, 2000));
+        const refreshed = await authService.refreshCredits(data.user.id);
+        setUser(refreshed);
+        if (refreshed.credits > before) {
+          setPaymentNotice({ kind: 'success', text: 'Płatność przyjęta — kredyty są już na Twoim koncie.' });
+          return;
+        }
+      }
+      if (!cancelled) {
+        setPaymentNotice({ kind: 'info', text: 'Płatność przyjęta. Kredyty pojawią się w ciągu minuty — odśwież stronę.' });
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const handleSignIn = async (email: string, password: string) => {
@@ -164,11 +206,7 @@ const App: React.FC = () => {
         onSignUp={handleSignUp}
       />
 
-      <PricingModal
-        isOpen={isPricingOpen}
-        onClose={() => setIsPricingOpen(false)}
-        onPurchase={() => setIsPricingOpen(false)}
-      />
+      <PricingModal isOpen={isPricingOpen} onClose={() => setIsPricingOpen(false)} />
 
       <Header
         user={user}
@@ -176,6 +214,23 @@ const App: React.FC = () => {
         onLogout={handleLogout}
         onAddCredits={() => setIsPricingOpen(true)}
       />
+
+      {paymentNotice && (
+        <div
+          className={`container mx-auto max-w-7xl mt-4 px-4`}
+          onClick={() => setPaymentNotice(null)}
+        >
+          <div
+            className={`rounded-lg border px-4 py-3 text-sm ${
+              paymentNotice.kind === 'success'
+                ? 'border-green-500/40 bg-green-500/10 text-green-300'
+                : 'border-gray-600 bg-gray-800 text-gray-200'
+            }`}
+          >
+            {paymentNotice.text}
+          </div>
+        </div>
+      )}
 
       <main className="container mx-auto px-4 py-8 max-w-7xl">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">

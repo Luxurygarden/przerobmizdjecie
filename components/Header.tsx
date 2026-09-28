@@ -1,15 +1,15 @@
 import React from 'react';
-import { Zap, Plus, LogIn, LogOut, User as UserIcon } from 'lucide-react';
+import { Zap, Plus, LogIn, LogOut } from 'lucide-react';
 import { UserProfile } from '../types';
 
 interface HeaderProps {
   user: UserProfile | null;
-  onLogin: () => void;
+  onOpenAuth: () => void;
   onLogout: () => void;
   onAddCredits: () => void;
 }
 
-const Header: React.FC<HeaderProps> = ({ user, onLogin, onLogout, onAddCredits }) => {
+const Header: React.FC<HeaderProps> = ({ user, onOpenAuth, onLogout, onAddCredits }) => {
   return (
     <header className="w-full py-4 px-6 flex flex-col sm:flex-row justify-between items-center bg-[#050810]/80 backdrop-blur-md sticky top-0 z-50 border-b border-gray-800 gap-4 sm:gap-0">
       <div className="flex items-center">
@@ -44,15 +44,13 @@ const Header: React.FC<HeaderProps> = ({ user, onLogin, onLogout, onAddCredits }
                 {/* User Profile */}
                 <div className="flex items-center gap-3 group relative">
                     <div className="text-right hidden sm:block">
-                        <p className="text-sm font-bold text-white leading-none">{user.name}</p>
+                        <p className="text-sm font-bold text-white leading-none">{user.email}</p>
                         <p className="text-xs text-gray-500">Plan Free</p>
                     </div>
                     <button className="relative">
-                        <img 
-                            src={user.avatarUrl} 
-                            alt={user.name} 
-                            className="w-10 h-10 rounded-full border-2 border-gray-700 hover:border-blue-500 transition-colors"
-                        />
+                        <div className="w-10 h-10 rounded-full border-2 border-gray-700 hover:border-blue-500 transition-colors bg-[#1e293b] flex items-center justify-center text-sm font-bold text-blue-300 uppercase">
+                            {user.email.slice(0, 2)}
+                        </div>
                         <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-[#050810] rounded-full"></div>
                     </button>
 
@@ -71,12 +69,12 @@ const Header: React.FC<HeaderProps> = ({ user, onLogin, onLogout, onAddCredits }
                 </div>
             </>
         ) : (
-            <button 
-                onClick={onLogin}
+            <button
+                onClick={onOpenAuth}
                 className="flex items-center gap-2 bg-white text-black px-4 py-2 rounded-full font-bold hover:bg-gray-200 transition-colors shadow-[0_0_15px_rgba(255,255,255,0.3)]"
             >
-                <img src="https://www.google.com/favicon.ico" alt="G" className="w-4 h-4" />
-                <span>Zaloguj z Google</span>
+                <LogIn size={16} />
+                <span>Zaloguj się</span>
             </button>
         )}
       </div>

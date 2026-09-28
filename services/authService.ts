@@ -1,75 +1,69 @@
+import { supabase } from './supabaseClient';
 import { UserProfile } from '../types';
 
-const STORAGE_KEY = 'przerobmizdjecie_user_session';
-const DB_KEY = 'przerobmizdjecie_users_db';
+const fetchProfile = async (userId: string, email: string): Promise<UserProfile> => {
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('id, email, credits')
+    .eq('id', userId)
+    .single();
 
-// Mock database simulation to persist credits across sessions
-const getDatabase = (): Record<string, UserProfile> => {
-  const db = localStorage.getItem(DB_KEY);
-  return db ? JSON.parse(db) : {};
+  if (error || !data) {
+    // Profile row is created by a DB trigger on sign-up; retry once shortly after.
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    const retry = await supabase.from('profiles').select('id, email, credits').eq('id', userId).single();
+    if (retry.error || !retry.data) {
+      throw new Error('PROFILE_NOT_FOUND');
+    }
+    return retry.data as UserProfile;
+  }
+
+  return data as UserProfile;
 };
 
-const saveDatabase = (db: Record<string, UserProfile>) => {
-  localStorage.setItem(DB_KEY, JSON.stringify(db));
-};
+export interface SignUpResult {
+  user: UserProfile | null;
+  needsEmailConfirmation: boolean;
+}
 
 export const authService = {
-  // Simulate Google Login
-  loginWithGoogle: async (): Promise<UserProfile> => {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        // Simulate a user coming from Google
-        const mockUser: UserProfile = {
-          id: 'google_123456789',
-          name: 'Jan Kowalski',
-          email: 'jan.kowalski@gmail.com',
-          avatarUrl: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Jan',
-          credits: 5 // Start bonus for new users
-        };
+  signUp: async (email: string, password: string): Promise<SignUpResult> => {
+    const { data, error } = await supabase.auth.signUp({ email, password });
+    if (error) throw error;
+    if (!data.user) throw new Error('SIGNUP_FAILED');
 
-        // Check if user exists in our "database" to retrieve their real credits
-        const db = getDatabase();
-        let finalUser = mockUser;
-
-        if (db[mockUser.id]) {
-          finalUser = db[mockUser.id];
-        } else {
-          // New user, save to db
-          db[mockUser.id] = mockUser;
-          saveDatabase(db);
-        }
-
-        // Save session
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(finalUser));
-        resolve(finalUser);
-      }, 800); // Simulate network delay
-    });
-  },
-
-  logout: () => {
-    localStorage.removeItem(STORAGE_KEY);
-  },
-
-  getCurrentUser: (): UserProfile | null => {
-    const session = localStorage.getItem(STORAGE_KEY);
-    if (!session) return null;
-    
-    // Always sync with DB to get latest credits
-    const user = JSON.parse(session) as UserProfile;
-    const db = getDatabase();
-    return db[user.id] || user;
-  },
-
-  updateCredits: (userId: string, amountToAdd: number): UserProfile => {
-    const db = getDatabase();
-    if (db[userId]) {
-      db[userId].credits += amountToAdd;
-      saveDatabase(db);
-      
-      // Update session as well
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(db[userId]));
-      return db[userId];
+    // With email confirmation enabled (the default), signUp creates the user
+    // but returns no session until they click the link in their inbox.
+    if (!data.session) {
+      return { user: null, needsEmailConfirmation: true };
     }
-    throw new Error("User not found");
-  }
+
+    const profile = await fetchProfile(data.user.id, data.user.email ?? email);
+    return { user: profile, needsEmailConfirmation: false };
+  },
+
+  signIn: async (email: string, password: string): Promise<UserProfile> => {
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) throw error;
+    if (!data.user) throw new Error('SIGNIN_FAILED');
+    return fetchProfile(data.user.id, data.user.email ?? email);
+  },
+
+  logout: async (): Promise<void> => {
+    await supabase.auth.signOut();
+  },
+
+  getCurrentUser: async (): Promise<UserProfile | null> => {
+    const { data } = await supabase.auth.getUser();
+    if (!data.user) return null;
+    try {
+      return await fetchProfile(data.user.id, data.user.email ?? '');
+    } catch {
+      return null;
+    }
+  },
+
+  refreshCredits: async (userId: string): Promise<UserProfile> => {
+    return fetchProfile(userId, '');
+  },
 };
